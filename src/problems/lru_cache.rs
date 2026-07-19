@@ -107,8 +107,11 @@ impl LRUCache {
                 .entry(key)
                 .and_modify(|entry| entry.value = value);
 
-            self.update_linked_entries(key);
-            self.update_cache(key, true);
+            let most_recent = self.most_recent.expect("MRU should be defined");
+            if most_recent != key {
+                self.update_linked_entries(key);
+                self.update_cache(key, true);
+            }
         } else {
             let entry = Entry {
                 value,
@@ -222,5 +225,21 @@ mod tests {
         cache.put(5, 5);
         cache.put(1, 30);
         assert_eq!(-1, cache.get(11));
+    }
+
+    #[test]
+    fn overwriting_mru_preserves_eviction_order() {
+        let mut cache = LRUCache::new(2);
+
+        cache.put(1, 1);
+        cache.put(2, 2);
+        cache.put(2, 20); // 2 is already MRU
+        cache.put(3, 3); // should evict 1
+        cache.put(4, 4); // should evict 2
+
+        assert_eq!(-1, cache.get(1));
+        assert_eq!(-1, cache.get(2));
+        assert_eq!(3, cache.get(3));
+        assert_eq!(4, cache.get(4)); // currently fails
     }
 }
