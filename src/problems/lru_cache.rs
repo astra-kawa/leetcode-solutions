@@ -5,7 +5,6 @@ use std::collections::HashMap;
 struct LRUCache {
     capacity: i32,
     items: HashMap<i32, i32>,
-    // could use a fixed array but would need to make the cache a generic
     order: Vec<i32>,
 }
 
@@ -13,8 +12,8 @@ impl LRUCache {
     fn new(capacity: i32) -> Self {
         LRUCache {
             capacity,
-            items: HashMap::new(),
-            order: Vec::new(),
+            items: HashMap::with_capacity(capacity as usize),
+            order: Vec::with_capacity(capacity as usize),
         }
     }
 
@@ -29,8 +28,6 @@ impl LRUCache {
         let position = self.order.iter().position(|&el| el == key).unwrap();
         self.order.remove(position);
         self.order.insert(0, key);
-
-        self.check_capacity();
     }
 
     fn get(&mut self, key: i32) -> i32 {
