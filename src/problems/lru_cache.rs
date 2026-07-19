@@ -57,12 +57,14 @@ impl LRUCache {
     }
 }
 
+#[derive(Debug)]
 struct Entry {
     value: i32,
     prev: Option<i32>,
     next: Option<i32>,
 }
 
+#[derive(Debug)]
 struct LRUCacheTwo {
     capacity: i32,
     entries: HashMap<i32, Entry>,
@@ -162,15 +164,28 @@ impl LRUCacheTwo {
                 prev: self.most_recent,
                 next: None,
             };
+
+            // update last most recent with new next
+            if let Some(most_recent) = self.most_recent {
+                self.entries.entry(most_recent).and_modify(|entry| {
+                    entry.next = Some(key);
+                });
+            }
+
             self.most_recent = Some(key);
 
+            if self.least_recent.is_none() {
+                self.least_recent = Some(key);
+            }
+
             self.entries.insert(key, entry);
+            self.check_capacity();
         }
     }
 }
 
 pub fn run() {
-    let mut cache = LRUCache::new(2);
+    let mut cache = LRUCacheTwo::new(2);
     cache.put(1, 1);
     cache.put(2, 2);
 
@@ -178,9 +193,10 @@ pub fn run() {
 
     cache.put(3, 3);
     println!("Get key 2 (expected -1): {}", cache.get(2));
+    println!("{cache:?}");
 
-    cache.put(4, 4);
-    println!("Get key 1 (expected -1): {}", cache.get(1));
-    println!("Get key 3 (expected 3): {}", cache.get(3));
-    println!("Get key 4 (expected 4): {}", cache.get(4));
+    // cache.put(4, 4);
+    // println!("Get key 1 (expected -1): {}", cache.get(1));
+    // println!("Get key 3 (expected 3): {}", cache.get(3));
+    // println!("Get key 4 (expected 4): {}", cache.get(4));
 }
