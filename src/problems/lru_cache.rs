@@ -34,12 +34,17 @@ impl LRUCache {
     }
 
     fn get(&mut self, key: i32) -> i32 {
-        if self.items.contains_key(&key) {
-            self.update_order(key);
-            return *self.items.get(&key).unwrap();
+        let mut value = -1;
+
+        if let Some(existing_value) = self.items.get(&key) {
+            value = *existing_value;
         }
 
-        -1
+        if value != -1 {
+            self.update_order(key);
+        }
+
+        value
     }
 
     fn put(&mut self, key: i32, value: i32) {
