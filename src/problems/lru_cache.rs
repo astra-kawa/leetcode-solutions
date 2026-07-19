@@ -1,80 +1,22 @@
 // source: https://leetcode.com/problems/lru-cache
-#![allow(unused)]
 use std::collections::HashMap;
 
-struct LRUCache {
-    capacity: i32,
-    items: HashMap<i32, i32>,
-    order: Vec<i32>,
-}
-
-impl LRUCache {
-    fn new(capacity: i32) -> Self {
-        LRUCache {
-            capacity,
-            items: HashMap::with_capacity(capacity as usize),
-            order: Vec::with_capacity(capacity as usize),
-        }
-    }
-
-    fn check_capacity(&mut self) {
-        if self.order.len() > self.capacity as usize {
-            let popped = self.order.pop().unwrap();
-            self.items.remove(&popped);
-        }
-    }
-
-    fn update_order(&mut self, key: i32) {
-        let position = self.order.iter().position(|&el| el == key).unwrap();
-        self.order.remove(position);
-        self.order.insert(0, key);
-    }
-
-    fn get(&mut self, key: i32) -> i32 {
-        let mut value = -1;
-
-        if let Some(existing_value) = self.items.get(&key) {
-            value = *existing_value;
-            self.update_order(key);
-        }
-
-        value
-    }
-
-    fn put(&mut self, key: i32, value: i32) {
-        if let Some(existing_value) = self.items.get(&key) {
-            if existing_value != &value {
-                self.items.insert(key, value);
-            }
-
-            self.update_order(key);
-        } else {
-            self.items.insert(key, value);
-            self.order.insert(0, key);
-
-            self.check_capacity();
-        }
-    }
-}
-
-#[derive(Debug)]
 struct Entry {
     value: i32,
     prev: Option<i32>,
     next: Option<i32>,
 }
 
-#[derive(Debug)]
-struct LRUCacheTwo {
+struct LRUCache {
     capacity: i32,
     entries: HashMap<i32, Entry>,
     most_recent: Option<i32>,
     least_recent: Option<i32>,
 }
 
-impl LRUCacheTwo {
+impl LRUCache {
     fn new(capacity: i32) -> Self {
-        LRUCacheTwo {
+        LRUCache {
             capacity,
             entries: HashMap::with_capacity(capacity as usize),
             most_recent: None,
@@ -183,14 +125,11 @@ impl LRUCacheTwo {
 }
 
 pub fn run() {
-    let mut cache = LRUCacheTwo::new(2);
+    let mut cache = LRUCache::new(2);
+
     cache.put(1, 1);
-
     cache.put(2, 2);
-    // println!("Put key 2: {cache:#?}");
-
     println!("Get key 1 (expected 1): {}", cache.get(1));
-    // println!("{cache:#?}");
 
     cache.put(3, 3);
     println!("Get key 2 (expected -1): {}", cache.get(2));
@@ -199,20 +138,6 @@ pub fn run() {
     println!("Get key 1 (expected -1): {}", cache.get(1));
     println!("Get key 3 (expected 3): {}", cache.get(3));
     println!("Get key 4 (expected 4): {}", cache.get(4));
-
-    // println!("{cache:?}");
-
-    // cache.put(1, 1);
-    // println!("Insert 1: {cache:?}");
-
-    // cache.put(2, 2);
-    // println!("Insert 2: {cache:?}");
-
-    // cache.put(3, 3);
-    // println!("Insert 3: {cache:?}");
-
-    // cache.put(4, 4);
-    // println!("Insert 4: {cache:?}");
 }
 
 #[cfg(test)]
@@ -221,7 +146,7 @@ mod tests {
 
     #[test]
     fn test_single_item() {
-        let mut cache = LRUCacheTwo::new(1);
+        let mut cache = LRUCache::new(1);
         cache.put(1, 1);
 
         assert_eq!(1, cache.get(1));
@@ -229,7 +154,7 @@ mod tests {
 
     #[test]
     fn test_multiple_item() {
-        let mut cache = LRUCacheTwo::new(2);
+        let mut cache = LRUCache::new(2);
         cache.put(1, 1);
         cache.put(2, 2);
 
@@ -239,7 +164,7 @@ mod tests {
 
     #[test]
     fn test_capacity_clear() {
-        let mut cache = LRUCacheTwo::new(2);
+        let mut cache = LRUCache::new(2);
         cache.put(1, 1);
         cache.put(2, 2);
         cache.put(3, 3);
@@ -251,7 +176,7 @@ mod tests {
 
     #[test]
     fn test_multiple_gets_and_puts() {
-        let mut cache = LRUCacheTwo::new(2);
+        let mut cache = LRUCache::new(2);
 
         cache.put(1, 1);
         cache.put(2, 2);
@@ -268,7 +193,7 @@ mod tests {
 
     #[test]
     fn test_simple_overwrite() {
-        let mut cache = LRUCacheTwo::new(1);
+        let mut cache = LRUCache::new(1);
         cache.put(1, 1);
         cache.put(1, 2);
 
@@ -277,7 +202,7 @@ mod tests {
 
     #[test]
     fn test_complex() {
-        let mut cache = LRUCacheTwo::new(10);
+        let mut cache = LRUCache::new(10);
 
         cache.put(10, 13);
         cache.put(3, 17);
