@@ -91,13 +91,22 @@ impl LRUCacheTwo {
         }
     }
 
-    fn remove_entry_from_list(&mut self, key: i32) {
-        let entry = self.entries.get(&key).unwrap();
+    fn remove_entry_from_linked_list(&mut self, key: i32) {
+        let (next_opt, prev_opt) = {
+            let entry = self.entries.get(&key).unwrap();
+            (entry.next, entry.prev)
+        };
 
-        if let Some(prev) = entry.prev {
+        if let Some(prev) = prev_opt {
             self.entries
                 .entry(prev)
-                .and_modify(|prev_entry| prev_entry.next = entry.next);
+                .and_modify(|prev_entry| prev_entry.next = next_opt);
+        }
+
+        if let Some(next) = next_opt {
+            self.entries
+                .entry(next)
+                .and_modify(|next_entry| next_entry.next = prev_opt);
         }
     }
 
