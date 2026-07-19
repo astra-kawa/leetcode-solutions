@@ -57,6 +57,89 @@ impl LRUCache {
     }
 }
 
+struct Entry {
+    value: i32,
+    prev: Option<i32>,
+    next: Option<i32>,
+}
+
+struct LRUCacheTwo {
+    capacity: i32,
+    entries: HashMap<i32, Entry>,
+    most_recent: Option<i32>,
+    least_recent: Option<i32>,
+}
+
+impl LRUCacheTwo {
+    fn new(capacity: i32) -> Self {
+        LRUCacheTwo {
+            capacity,
+            entries: HashMap::with_capacity(capacity as usize),
+            most_recent: None,
+            least_recent: None,
+        }
+    }
+
+    fn check_capacity(&mut self) {
+        if self.entries.len() > self.capacity as usize {
+            // todo - remove unwraps
+            let key = self.least_recent.unwrap();
+
+            let least_recent_entry = self.entries.get(&key).unwrap();
+            self.least_recent = least_recent_entry.next;
+            self.entries.remove(&key);
+        }
+    }
+
+    fn get(&mut self, key: i32) -> i32 {
+        let mut value = -1;
+
+        self.entries.entry(key).and_modify(|entry| {
+            // update linked entries
+            if let Some(next) = entry.next {
+                // self.entries.entry(next).and_modify(|next_entry| {
+                //     next_entry.prev = entry.prev;
+                // });
+            }
+
+            // bruh
+            if let Some(prev) = entry.prev {}
+
+            entry.next = None;
+            entry.prev = self.most_recent;
+
+            value = entry.value;
+            self.most_recent = Some(key);
+        });
+
+        value
+    }
+
+    fn put(&mut self, key: i32, value: i32) {
+        if let Some(existing_entry) = self.entries.get(&key) {
+            if existing_entry.value != value {
+                let entry = Entry {
+                    value,
+                    prev: self.most_recent,
+                    next: None,
+                };
+                self.entries.insert(key, entry);
+            }
+
+            self.most_recent = Some(key);
+        } else {
+            let entry = Entry {
+                value,
+                prev: self.most_recent,
+                next: None,
+            };
+            self.most_recent = Some(key);
+
+            self.entries.insert(key, entry);
+        }
+    }
+}
+
 pub fn run() {
     let mut cache = LRUCache::new(2);
     cache.put(1, 1);
