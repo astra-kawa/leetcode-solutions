@@ -18,17 +18,24 @@ impl LRUCache {
         }
     }
 
+    fn check_capacity(&mut self) {
+        if self.order.len() > self.capacity as usize {
+            let popped = self.order.pop().unwrap();
+            self.items.remove(&popped);
+        }
+    }
+
+    fn update_order(&mut self, key: i32) {
+        let position = self.order.iter().position(|&el| el == key).unwrap();
+        self.order.remove(position);
+        self.order.insert(0, key);
+
+        self.check_capacity();
+    }
+
     fn get(&mut self, key: i32) -> i32 {
         if self.items.contains_key(&key) {
-            let position = self.order.iter().position(|&el| el == key).unwrap();
-            self.order.remove(position);
-            self.order.insert(0, key);
-
-            if self.order.len() > self.capacity as usize {
-                let popped = self.order.pop().unwrap();
-                self.items.remove(&popped);
-            }
-
+            self.update_order(key);
             return *self.items.get(&key).unwrap();
         }
 
@@ -41,22 +48,12 @@ impl LRUCache {
                 self.items.insert(key, value);
             }
 
-            let position = self.order.iter().position(|&el| el == key).unwrap();
-            self.order.remove(position);
-            self.order.insert(0, key);
-
-            if self.order.len() > self.capacity as usize {
-                let popped = self.order.pop().unwrap();
-                self.items.remove(&popped);
-            }
+            self.update_order(key);
         } else {
             self.items.insert(key, value);
-
             self.order.insert(0, key);
-            if self.order.len() > self.capacity as usize {
-                let popped = self.order.pop().unwrap();
-                self.items.remove(&popped);
-            }
+
+            self.check_capacity();
         }
     }
 }
