@@ -38,9 +38,6 @@ impl LRUCache {
 
         if let Some(existing_value) = self.items.get(&key) {
             value = *existing_value;
-        }
-
-        if value != -1 {
             self.update_order(key);
         }
 
