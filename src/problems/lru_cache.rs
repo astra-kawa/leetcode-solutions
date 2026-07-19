@@ -8,35 +8,36 @@ struct Entry {
 }
 
 struct LRUCache {
-    capacity: i32,
+    capacity: usize,
     entries: HashMap<i32, Entry>,
     most_recent: Option<i32>,
     least_recent: Option<i32>,
 }
 
 impl LRUCache {
-    fn new(capacity: i32) -> Self {
+    fn new(capacity: usize) -> Self {
         LRUCache {
             capacity,
-            entries: HashMap::with_capacity(capacity as usize),
+            entries: HashMap::with_capacity(capacity),
             most_recent: None,
             least_recent: None,
         }
     }
 
-    fn check_capacity(&mut self) {
-        if self.entries.len() > self.capacity as usize {
-            // todo - remove unwraps
-            let key = self.least_recent.unwrap();
+    fn evict_lru_if_needed(&mut self) {
+        if self.entries.len() > self.capacity {
+            let key = self
+                .least_recent
+                .expect("least_recent must reference an existing entry");
 
             let least_recent_entry = self.entries.get(&key).unwrap();
             self.least_recent = least_recent_entry.next;
-            self.update_linked_entries(key);
+            self.detach(key);
             self.entries.remove(&key);
         }
     }
 
-    fn update_linked_entries(&mut self, key: i32) {
+    fn detach(&mut self, key: i32) {
         let (next_opt, prev_opt) = {
             let entry = self.entries.get(&key).unwrap();
             (entry.next, entry.prev)
@@ -55,7 +56,7 @@ impl LRUCache {
         }
     }
 
-    fn update_cache(&mut self, key: i32, entry_update: bool) {
+    fn attach_as_mru(&mut self, key: i32, entry_update: bool) {
         let old_most_recent = self.most_recent;
 
         if let Some(most_recent) = self.most_recent {
@@ -89,8 +90,8 @@ impl LRUCache {
             if let Some(most_recent) = self.most_recent
                 && most_recent != key
             {
-                self.update_linked_entries(key);
-                self.update_cache(key, true);
+                self.detach(key);
+                self.attach_as_mru(key, true);
             }
 
             value
@@ -100,17 +101,13 @@ impl LRUCache {
     }
 
     fn put(&mut self, key: i32, value: i32) {
-        let key_exists = self.entries.contains_key(&key);
-
-        if key_exists {
-            self.entries
-                .entry(key)
-                .and_modify(|entry| entry.value = value);
+        if let Some(entry) = self.entries.get_mut(&key) {
+            entry.value = value;
 
             let most_recent = self.most_recent.expect("MRU should be defined");
             if most_recent != key {
-                self.update_linked_entries(key);
-                self.update_cache(key, true);
+                self.detach(key);
+                self.attach_as_mru(key, true);
             }
         } else {
             let entry = Entry {
@@ -121,8 +118,8 @@ impl LRUCache {
 
             self.entries.insert(key, entry);
 
-            self.update_cache(key, false);
-            self.check_capacity();
+            self.attach_as_mru(key, false);
+            self.evict_lru_if_needed();
         }
     }
 }
