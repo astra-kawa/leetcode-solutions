@@ -97,6 +97,10 @@ impl LRUCacheTwo {
             (entry.next, entry.prev)
         };
 
+        if next_opt.is_none() {
+            return;
+        }
+
         if let Some(prev) = prev_opt {
             self.entries
                 .entry(prev)
@@ -106,7 +110,7 @@ impl LRUCacheTwo {
         if let Some(next) = next_opt {
             self.entries
                 .entry(next)
-                .and_modify(|next_entry| next_entry.next = prev_opt);
+                .and_modify(|next_entry| next_entry.prev = prev_opt);
         }
     }
 
@@ -114,12 +118,28 @@ impl LRUCacheTwo {
         let mut value = -1;
 
         self.entries.entry(key).and_modify(|entry| {
-            entry.next = None;
-            entry.prev = self.most_recent;
+            if entry.next.is_none() {
+                value = entry.value;
+            } else {
+                // if current entry is least recent, want to update least recent to
+                // instead be this entry's next entry
+                if let Some(least_recent) = self.least_recent
+                    && least_recent == key
+                {
+                    self.least_recent = entry.next;
+                }
 
-            value = entry.value;
-            self.most_recent = Some(key);
+                entry.next = None;
+                entry.prev = self.most_recent;
+
+                value = entry.value;
+                self.most_recent = Some(key);
+            }
         });
+
+        if value != -1 {
+            self.remove_entry_from_linked_list(key);
+        }
 
         value
     }
