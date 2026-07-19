@@ -1,5 +1,5 @@
 // source: https://leetcode.com/problems/lru-cache
-
+#![allow(unused)]
 use std::collections::HashMap;
 
 struct LRUCache {
@@ -89,16 +89,18 @@ impl LRUCacheTwo {
 
             let least_recent_entry = self.entries.get(&key).unwrap();
             self.least_recent = least_recent_entry.next;
+            self.update_linked_entries(key);
             self.entries.remove(&key);
         }
     }
 
-    fn remove_entry_from_linked_list(&mut self, key: i32) {
+    fn update_linked_entries(&mut self, key: i32) {
         let (next_opt, prev_opt) = {
             let entry = self.entries.get(&key).unwrap();
             (entry.next, entry.prev)
         };
 
+        // if first entry, no need to update
         if next_opt.is_none() {
             return;
         }
@@ -116,48 +118,64 @@ impl LRUCacheTwo {
         }
     }
 
-    fn get(&mut self, key: i32) -> i32 {
-        let mut value = -1;
-
+    fn update_entry(&mut self, key: i32) {
         self.entries.entry(key).and_modify(|entry| {
-            if entry.next.is_none() {
-                value = entry.value;
-            } else {
-                // if current entry is least recent, want to update least recent to
-                // instead be this entry's next entry
-                if let Some(least_recent) = self.least_recent
-                    && least_recent == key
-                {
-                    self.least_recent = entry.next;
-                }
-
-                entry.next = None;
-                entry.prev = self.most_recent;
-
-                value = entry.value;
-                self.most_recent = Some(key);
-            }
+            entry.next = None;
+            entry.prev = self.most_recent;
         });
+    }
 
-        if value != -1 {
-            self.remove_entry_from_linked_list(key);
+    fn update_cache(&mut self, key: i32, entry_update: bool) {
+        let old_most_recent = self.most_recent;
+
+        if let Some(most_recent) = self.most_recent {
+            self.entries.entry(most_recent).and_modify(|entry| {
+                entry.next = Some(key);
+            });
+        }
+        self.most_recent = Some(key);
+
+        if let Some(least_recent) = self.least_recent
+            && least_recent == key
+        {
+            let next_key = self.entries.get(&key).unwrap().next;
+            self.least_recent = next_key;
+        } else if self.least_recent.is_none() {
+            self.least_recent = Some(key);
         }
 
-        value
+        if entry_update {
+            self.entries.entry(key).and_modify(|entry| {
+                entry.next = None;
+                entry.prev = old_most_recent;
+            });
+        }
+    }
+
+    fn get(&mut self, key: i32) -> i32 {
+        if let Some(entry) = self.entries.get(&key) {
+            let value = entry.value;
+
+            self.update_linked_entries(key);
+            self.update_cache(key, true);
+            //self.update_entry(key);
+
+            value
+        } else {
+            -1
+        }
     }
 
     fn put(&mut self, key: i32, value: i32) {
-        if let Some(existing_entry) = self.entries.get(&key) {
-            if existing_entry.value != value {
-                let entry = Entry {
-                    value,
-                    prev: self.most_recent,
-                    next: None,
-                };
-                self.entries.insert(key, entry);
-            }
+        let key_exists = self.entries.contains_key(&key);
 
-            self.most_recent = Some(key);
+        if key_exists {
+            self.entries
+                .entry(key)
+                .and_modify(|entry| entry.value = value);
+
+            self.update_linked_entries(key);
+            self.update_cache(key, false);
         } else {
             let entry = Entry {
                 value,
@@ -165,20 +183,9 @@ impl LRUCacheTwo {
                 next: None,
             };
 
-            // update last most recent with new next
-            if let Some(most_recent) = self.most_recent {
-                self.entries.entry(most_recent).and_modify(|entry| {
-                    entry.next = Some(key);
-                });
-            }
-
-            self.most_recent = Some(key);
-
-            if self.least_recent.is_none() {
-                self.least_recent = Some(key);
-            }
-
             self.entries.insert(key, entry);
+
+            self.update_cache(key, false);
             self.check_capacity();
         }
     }
@@ -187,16 +194,110 @@ impl LRUCacheTwo {
 pub fn run() {
     let mut cache = LRUCacheTwo::new(2);
     cache.put(1, 1);
+
     cache.put(2, 2);
+    // println!("Put key 2: {cache:#?}");
 
     println!("Get key 1 (expected 1): {}", cache.get(1));
+    // println!("{cache:#?}");
 
     cache.put(3, 3);
     println!("Get key 2 (expected -1): {}", cache.get(2));
-    println!("{cache:?}");
+
+    cache.put(4, 4);
+    println!("Get key 1 (expected -1): {}", cache.get(1));
+    println!("Get key 3 (expected 3): {}", cache.get(3));
+    println!("Get key 4 (expected 4): {}", cache.get(4));
+
+    // println!("{cache:?}");
+
+    // cache.put(1, 1);
+    // println!("Insert 1: {cache:?}");
+
+    // cache.put(2, 2);
+    // println!("Insert 2: {cache:?}");
+
+    // cache.put(3, 3);
+    // println!("Insert 3: {cache:?}");
 
     // cache.put(4, 4);
-    // println!("Get key 1 (expected -1): {}", cache.get(1));
-    // println!("Get key 3 (expected 3): {}", cache.get(3));
-    // println!("Get key 4 (expected 4): {}", cache.get(4));
+    // println!("Insert 4: {cache:?}");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_single_item() {
+        let mut cache = LRUCacheTwo::new(1);
+        cache.put(1, 1);
+
+        assert_eq!(1, cache.get(1));
+    }
+
+    #[test]
+    fn test_multiple_item() {
+        let mut cache = LRUCacheTwo::new(2);
+        cache.put(1, 1);
+        cache.put(2, 2);
+
+        assert_eq!(1, cache.get(1));
+        assert_eq!(2, cache.get(2));
+    }
+
+    #[test]
+    fn test_capacity_clear() {
+        let mut cache = LRUCacheTwo::new(2);
+        cache.put(1, 1);
+        cache.put(2, 2);
+        cache.put(3, 3);
+
+        assert_eq!(-1, cache.get(1));
+        assert_eq!(2, cache.get(2));
+        assert_eq!(3, cache.get(3));
+    }
+
+    #[test]
+    fn test_multiple_gets_and_puts() {
+        let mut cache = LRUCacheTwo::new(2);
+
+        cache.put(1, 1);
+        cache.put(2, 2);
+        assert_eq!(1, cache.get(1));
+
+        cache.put(3, 3);
+        assert_eq!(-1, cache.get(2));
+
+        cache.put(4, 4);
+        assert_eq!(-1, cache.get(1));
+        assert_eq!(3, cache.get(3));
+        assert_eq!(4, cache.get(4));
+    }
+
+    #[test]
+    fn test_simple_overwrite() {
+        let mut cache = LRUCacheTwo::new(1);
+        cache.put(1, 1);
+        cache.put(1, 2);
+
+        assert_eq!(2, cache.get(1));
+    }
+
+    #[test]
+    fn test_complex() {
+        let mut cache = LRUCacheTwo::new(10);
+
+        cache.put(1, 1);
+        cache.put(2, 2);
+        assert_eq!(1, cache.get(1));
+
+        cache.put(3, 3);
+        assert_eq!(-1, cache.get(2));
+
+        cache.put(4, 4);
+        assert_eq!(-1, cache.get(1));
+        assert_eq!(3, cache.get(3));
+        assert_eq!(4, cache.get(4));
+    }
 }
