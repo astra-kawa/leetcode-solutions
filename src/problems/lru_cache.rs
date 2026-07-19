@@ -91,20 +91,20 @@ impl LRUCacheTwo {
         }
     }
 
+    fn remove_entry_from_list(&mut self, key: i32) {
+        let entry = self.entries.get(&key).unwrap();
+
+        if let Some(prev) = entry.prev {
+            self.entries
+                .entry(prev)
+                .and_modify(|prev_entry| prev_entry.next = entry.next);
+        }
+    }
+
     fn get(&mut self, key: i32) -> i32 {
         let mut value = -1;
 
         self.entries.entry(key).and_modify(|entry| {
-            // update linked entries
-            if let Some(next) = entry.next {
-                // self.entries.entry(next).and_modify(|next_entry| {
-                //     next_entry.prev = entry.prev;
-                // });
-            }
-
-            // bruh
-            if let Some(prev) = entry.prev {}
-
             entry.next = None;
             entry.prev = self.most_recent;
 
