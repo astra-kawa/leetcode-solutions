@@ -100,11 +100,6 @@ impl LRUCacheTwo {
             (entry.next, entry.prev)
         };
 
-        // if first entry, no need to update
-        if next_opt.is_none() {
-            return;
-        }
-
         if let Some(prev) = prev_opt {
             self.entries
                 .entry(prev)
@@ -116,13 +111,6 @@ impl LRUCacheTwo {
                 .entry(next)
                 .and_modify(|next_entry| next_entry.prev = prev_opt);
         }
-    }
-
-    fn update_entry(&mut self, key: i32) {
-        self.entries.entry(key).and_modify(|entry| {
-            entry.next = None;
-            entry.prev = self.most_recent;
-        });
     }
 
     fn update_cache(&mut self, key: i32, entry_update: bool) {
@@ -156,9 +144,12 @@ impl LRUCacheTwo {
         if let Some(entry) = self.entries.get(&key) {
             let value = entry.value;
 
-            self.update_linked_entries(key);
-            self.update_cache(key, true);
-            //self.update_entry(key);
+            if let Some(most_recent) = self.most_recent
+                && most_recent != key
+            {
+                self.update_linked_entries(key);
+                self.update_cache(key, true);
+            }
 
             value
         } else {
@@ -175,7 +166,7 @@ impl LRUCacheTwo {
                 .and_modify(|entry| entry.value = value);
 
             self.update_linked_entries(key);
-            self.update_cache(key, false);
+            self.update_cache(key, true);
         } else {
             let entry = Entry {
                 value,
@@ -288,16 +279,23 @@ mod tests {
     fn test_complex() {
         let mut cache = LRUCacheTwo::new(10);
 
-        cache.put(1, 1);
-        cache.put(2, 2);
-        assert_eq!(1, cache.get(1));
+        cache.put(10, 13);
+        cache.put(3, 17);
+        cache.put(6, 11);
+        cache.put(10, 5);
+        cache.put(9, 10);
+        assert_eq!(-1, cache.get(13));
 
-        cache.put(3, 3);
-        assert_eq!(-1, cache.get(2));
+        cache.put(2, 19);
+        assert_eq!(19, cache.get(2));
+        assert_eq!(17, cache.get(3));
 
-        cache.put(4, 4);
-        assert_eq!(-1, cache.get(1));
-        assert_eq!(3, cache.get(3));
-        assert_eq!(4, cache.get(4));
+        cache.put(5, 25);
+        assert_eq!(-1, cache.get(8));
+
+        cache.put(9, 22);
+        cache.put(5, 5);
+        cache.put(1, 30);
+        assert_eq!(-1, cache.get(11));
     }
 }
