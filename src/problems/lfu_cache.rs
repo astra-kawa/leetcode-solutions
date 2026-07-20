@@ -1,20 +1,41 @@
 // https://leetcode.com/problems/lfu-cache
-use std::collections::HashMap;
+#![allow(unused)]
+use core::fmt;
+use std::{collections::HashMap, println};
 
 struct Node {
     next: Option<i32>,
-    prev: Option<i32>
+    prev: Option<i32>,
 }
 
 struct FrequencyList {
     nodes: HashMap<i32, Node>,
     most_recent: Option<i32>,
-    least_recent: Option<i32>
+    least_recent: Option<i32>,
+}
+
+impl fmt::Debug for FrequencyList {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "FrequencyList: [")?;
+
+        let mut current = self.most_recent;
+        while let Some(key) = current {
+            write!(f, "{}, ", key)?;
+            current = self.nodes.get(&key).and_then(|node| node.prev);
+        }
+
+        write!(f, "]")?;
+        Ok(())
+    }
 }
 
 impl FrequencyList {
     fn new() -> Self {
-        FrequencyList { nodes: HashMap::new(), most_recent: None, least_recent: None }
+        FrequencyList {
+            nodes: HashMap::new(),
+            most_recent: None,
+            least_recent: None,
+        }
     }
 
     fn detach(&mut self, key: i32) {
@@ -54,9 +75,19 @@ impl FrequencyList {
         }
     }
 
+    fn is_empty(&self) -> bool {
+        self.nodes.is_empty()
+    }
+
     fn remove_node(&mut self, key: i32) {
         self.detach(key);
         self.nodes.remove(&key);
+    }
+
+    fn remove_lru(&mut self) {
+        if let Some(least_recent) = self.least_recent {
+            self.remove_node(least_recent);
+        }
     }
 
     fn put(&mut self, key: i32) {
@@ -64,6 +95,12 @@ impl FrequencyList {
             self.detach(key);
             self.add_to_front(key);
         } else {
+            let node = Node {
+                next: None,
+                prev: self.most_recent,
+            };
+
+            self.nodes.insert(key, node);
             self.add_to_front(key);
         }
     }
@@ -84,6 +121,7 @@ impl FrequencyList {
     }
 }
 
+#[derive(Debug)]
 struct Entry {
     value: i32,
     counter: i32,
@@ -95,6 +133,7 @@ impl Entry {
     }
 }
 
+#[derive(Debug)]
 struct LFUCache {
     capacity: i32,
     entries: HashMap<i32, Entry>,
@@ -114,28 +153,46 @@ impl LFUCache {
 
     fn get(&mut self, key: i32) -> i32 {
         if let Some(entry) = self.entries.get_mut(&key) {
+            self.counter_map
+                .get_mut(&entry.counter)
+                .expect("Counter map should exist")
+                .remove_node(key);
+
             entry.counter += 1;
+            // todo - fix this
+            // self.add_key_to_counter_map(entry.counter, key);
+
             entry.value
         } else {
             -1
         }
     }
 
-    fn add_key_to_counter_mape(&mut self, counter: i32, key: i32) {
+    fn add_key_to_counter_map(&mut self, counter: i32, key: i32) {
         if let Some(counter_entry) = self.counter_map.get_mut(&counter) {
-            counter_entry.put(counter, key);
+            counter_entry.put(key);
         } else {
-            let mut cache = LRUCache::new(self.capacity as usize);
-            cache.put(key, counter);
+            let mut list = FrequencyList::new();
+            list.put(key);
 
-            self.counter_map.insert(counter, cache);
+            self.counter_map.insert(counter, list);
         }
     }
 
     fn check_capacity(&mut self) {
         if self.entries.len() > self.capacity as usize {
-            let least_counter_map = self.counter_map.get_mut(&self.least_counter).unwrap();
-            least_counter_map.
+            let least_counter_map = self
+                .counter_map
+                .get_mut(&self.least_counter)
+                .expect("Counter map should exist");
+
+            least_counter_map.remove_lru();
+
+            if least_counter_map.is_empty() {
+                while !self.counter_map.contains_key(&self.least_counter) {
+                    self.least_counter += 1;
+                }
+            }
         }
     }
 
@@ -144,8 +201,8 @@ impl LFUCache {
         if let Some(entry) = self.entries.get_mut(&key) {
             self.counter_map
                 .get_mut(&entry.counter)
-                .unwrap()
-                .remove_entry(key);
+                .expect("List should exist for counter")
+                .remove_node(key);
 
             entry.counter += 1;
             entry.value = value;
@@ -162,9 +219,19 @@ impl LFUCache {
             entry_counter = 0;
         }
 
-        self.add_key_to_counter_mape(entry_counter, key);
+        self.add_key_to_counter_map(entry_counter, key);
         self.check_capacity();
     }
+}
+
+pub fn run() {
+    let mut cache = LFUCache::new(2);
+
+    cache.put(1, 1);
+    cache.put(2, 2);
+    println!("Get 1 (expected 1): {}", cache.get(1));
+
+    println!("{:#?}", cache);
 }
 
 #[cfg(test)]
