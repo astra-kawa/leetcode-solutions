@@ -1,3 +1,4 @@
+use leetcode::problems::lfu_cache;
 use leetcode::problems::lru_cache;
 use std::env;
 
@@ -7,6 +8,7 @@ fn main() {
 
     match problem.as_str() {
         "lru_cache" => lru_cache::run(),
+        "lfu_cache" => lfu_cache::run(),
         _ => eprintln!("Unknown or unimplemented problem: {}", problem),
     }
 }
