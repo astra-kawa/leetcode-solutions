@@ -7,7 +7,7 @@ struct Entry {
     next: Option<i32>,
 }
 
-struct LRUCache {
+pub struct LRUCache {
     capacity: usize,
     entries: HashMap<i32, Entry>,
     most_recent: Option<i32>,
@@ -15,7 +15,7 @@ struct LRUCache {
 }
 
 impl LRUCache {
-    fn new(capacity: usize) -> Self {
+    pub fn new(capacity: usize) -> Self {
         LRUCache {
             capacity,
             entries: HashMap::with_capacity(capacity),
@@ -83,7 +83,12 @@ impl LRUCache {
         }
     }
 
-    fn get(&mut self, key: i32) -> i32 {
+    pub fn remove_entry(&mut self, key: i32) {
+        self.detach(key);
+        self.entries.remove(&key);
+    }
+
+    pub fn get(&mut self, key: i32) -> i32 {
         if let Some(entry) = self.entries.get(&key) {
             let value = entry.value;
 
@@ -100,7 +105,7 @@ impl LRUCache {
         }
     }
 
-    fn put(&mut self, key: i32, value: i32) {
+    pub fn put(&mut self, key: i32, value: i32) {
         if let Some(entry) = self.entries.get_mut(&key) {
             entry.value = value;
 
