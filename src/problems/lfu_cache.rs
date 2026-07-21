@@ -103,12 +103,12 @@ impl FrequencyList {
     }
 
     fn remove_lru(&mut self) -> i32 {
-        if let Some(least_recent) = self.least_recent {
-            self.remove_node(least_recent);
-            return least_recent;
-        };
+        let least_recent = self
+            .least_recent
+            .expect("Least recent must exist to remove");
+        self.remove_node(least_recent);
 
-        -1
+        least_recent
     }
 
     fn put(&mut self, key: i32) {
@@ -199,6 +199,9 @@ impl LFUCache {
 
             if prev_counter_map.is_empty() {
                 self.counter_map.remove(&prev_counter);
+                while !self.counter_map.contains_key(&self.least_counter) {
+                    self.least_counter += 1;
+                }
             }
         }
 
@@ -217,7 +220,7 @@ impl LFUCache {
     }
 
     fn check_capacity(&mut self) {
-        if self.entries.len() > self.capacity as usize {
+        if self.entries.len() >= self.capacity as usize {
             let least_counter_map = self
                 .counter_map
                 .get_mut(&self.least_counter)
@@ -247,6 +250,8 @@ impl LFUCache {
 
             entry_counter = entry.counter;
         } else {
+            self.check_capacity();
+
             let entry = Entry::new(value);
             self.entries.insert(key, entry);
 
@@ -269,8 +274,6 @@ impl LFUCache {
                 self.counter_map.remove(&prev_counter);
             }
         }
-
-        self.check_capacity();
     }
 }
 
@@ -283,6 +286,10 @@ pub fn run() {
 
     cache.put(3, 3);
     println!("Get 2 (expected -1): {}", cache.get(2));
+    println!("Get 3 (expected 3): {}", cache.get(3));
+
+    cache.put(4, 4);
+    println!("Get 1 (expected -1): {}", cache.get(1));
 
     println!("{:#?}", cache);
 }
