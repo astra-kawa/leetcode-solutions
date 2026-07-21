@@ -112,6 +112,11 @@ impl FrequencyList {
     fn put(&mut self, key: i32) {
         if self.nodes.contains_key(&key) {
             self.detach(key);
+
+            self.nodes.entry(key).and_modify(|node| {
+                node.next = None;
+                node.prev = self.most_recent;
+            });
             self.add_to_front(key);
         } else {
             let node = Node {
@@ -156,8 +161,9 @@ impl LFUCache {
     }
 
     fn get(&mut self, key: i32) -> i32 {
-        let mut value = -1;
+        let mut return_value = None;
         let mut new_counter = 0;
+
         if let Some(entry) = self.entries.get_mut(&key) {
             let map = self
                 .counter_map
@@ -168,10 +174,10 @@ impl LFUCache {
 
             entry.counter += 1;
             new_counter = entry.counter;
-            value = entry.value;
+            return_value = Some(entry.value);
         }
 
-        if value != -1 {
+        if let Some(return_value) = return_value {
             self.add_key_to_counter_map(new_counter, key);
 
             let prev_counter = new_counter - 1;
@@ -186,9 +192,11 @@ impl LFUCache {
                     self.least_counter += 1;
                 }
             }
-        }
 
-        value
+            return_value
+        } else {
+            -1
+        }
     }
 
     fn add_key_to_counter_map(&mut self, counter: i32, key: i32) {
@@ -203,7 +211,7 @@ impl LFUCache {
     }
 
     fn check_capacity(&mut self) {
-        if self.entries.len() >= self.capacity as usize {
+        if self.entries.len() >= self.capacity as usize && self.capacity > 0 {
             while !self.counter_map.contains_key(&self.least_counter) {
                 self.least_counter += 1;
             }
@@ -335,11 +343,10 @@ mod tests {
         cache.put(1, 1);
         cache.get(1);
         cache.get(1);
+        assert_eq!(1, cache.get(1));
 
         cache.put(2, 2);
-
-        assert_eq!(1, cache.get(1));
-        assert_eq!(-1, cache.get(2));
+        assert_eq!(2, cache.get(2));
     }
 
     #[test]
