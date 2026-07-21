@@ -1,8 +1,9 @@
 // https://leetcode.com/problems/lfu-cache
 #![allow(unused)]
 use core::fmt;
-use std::{collections::HashMap, println};
+use std::{collections::HashMap, println, writeln};
 
+#[derive(Debug)]
 struct Node {
     next: Option<i32>,
     prev: Option<i32>,
@@ -25,6 +26,11 @@ impl fmt::Debug for FrequencyList {
         }
 
         write!(f, "]")?;
+        write!(
+            f,
+            " Least: {:?} | Most: {:?}",
+            self.least_recent, self.most_recent
+        );
         Ok(())
     }
 }
@@ -55,6 +61,18 @@ impl FrequencyList {
                 .entry(prev)
                 .and_modify(|prev_entry| prev_entry.next = next_key);
         }
+
+        if let Some(most_recent) = self.most_recent
+            && most_recent == key
+        {
+            self.most_recent = prev_key;
+        }
+
+        if let Some(least_recent) = self.least_recent
+            && least_recent == key
+        {
+            self.least_recent = next_key;
+        }
     }
 
     fn add_to_front(&mut self, key: i32) {
@@ -84,10 +102,13 @@ impl FrequencyList {
         self.nodes.remove(&key);
     }
 
-    fn remove_lru(&mut self) {
+    fn remove_lru(&mut self) -> i32 {
         if let Some(least_recent) = self.least_recent {
             self.remove_node(least_recent);
-        }
+            return least_recent;
+        };
+
+        -1
     }
 
     fn put(&mut self, key: i32) {
@@ -152,20 +173,36 @@ impl LFUCache {
     }
 
     fn get(&mut self, key: i32) -> i32 {
+        let mut value = -1;
+        let mut new_counter = 0;
         if let Some(entry) = self.entries.get_mut(&key) {
-            self.counter_map
+            let map = self
+                .counter_map
                 .get_mut(&entry.counter)
-                .expect("Counter map should exist")
-                .remove_node(key);
+                .expect("Counter map should exist");
+
+            map.remove_node(key);
 
             entry.counter += 1;
-            // todo - fix this
-            // self.add_key_to_counter_map(entry.counter, key);
-
-            entry.value
-        } else {
-            -1
+            new_counter = entry.counter;
+            value = entry.value;
         }
+
+        if value != -1 {
+            self.add_key_to_counter_map(new_counter, key);
+
+            let prev_counter = new_counter - 1;
+            let prev_counter_map = self
+                .counter_map
+                .get(&prev_counter)
+                .expect("List should exist for counter");
+
+            if prev_counter_map.is_empty() {
+                self.counter_map.remove(&prev_counter);
+            }
+        }
+
+        value
     }
 
     fn add_key_to_counter_map(&mut self, counter: i32, key: i32) {
@@ -186,7 +223,8 @@ impl LFUCache {
                 .get_mut(&self.least_counter)
                 .expect("Counter map should exist");
 
-            least_counter_map.remove_lru();
+            let removed_key = least_counter_map.remove_lru();
+            self.entries.remove(&removed_key);
 
             if least_counter_map.is_empty() {
                 while !self.counter_map.contains_key(&self.least_counter) {
@@ -220,6 +258,18 @@ impl LFUCache {
         }
 
         self.add_key_to_counter_map(entry_counter, key);
+        if entry_counter != 0 {
+            let prev_counter = entry_counter - 1;
+            let prev_counter_map = self
+                .counter_map
+                .get(&prev_counter)
+                .expect("List should exist for counter");
+
+            if prev_counter_map.is_empty() {
+                self.counter_map.remove(&prev_counter);
+            }
+        }
+
         self.check_capacity();
     }
 }
@@ -231,12 +281,16 @@ pub fn run() {
     cache.put(2, 2);
     println!("Get 1 (expected 1): {}", cache.get(1));
 
+    cache.put(3, 3);
+    println!("Get 2 (expected -1): {}", cache.get(2));
+
     println!("{:#?}", cache);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::assert_eq;
 
     #[test]
     fn test_single_item() {
@@ -267,5 +321,16 @@ mod tests {
 
         assert_eq!(1, cache.get(1));
         assert_eq!(-1, cache.get(2));
+    }
+
+    #[test]
+    fn test_example_one() {
+        let mut cache = LFUCache::new(2);
+
+        cache.put(1, 1);
+        cache.put(2, 2);
+        assert_eq!(1, cache.get(1));
+
+        cache.put(3, 3);
     }
 }
