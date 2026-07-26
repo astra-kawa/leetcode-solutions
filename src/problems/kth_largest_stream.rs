@@ -1,5 +1,17 @@
 // https://leetcode.com/problems/kth-largest-element-in-a-stream
 
+const fn parent(i: usize) -> usize {
+    (i - 1) / 2
+}
+
+const fn left(i: usize) -> usize {
+    (2 * i) + 1
+}
+
+const fn right(i: usize) -> usize {
+    (2 * i) + 2
+}
+
 // kth largest stream
 // now priority queue using binary heap
 #[derive(Debug)]
@@ -10,86 +22,55 @@ struct KthLargest {
 
 impl KthLargest {
     fn new(k: i32, nums: Vec<i32>) -> Self {
+        let k = k.try_into().expect("k must be non-negative");
+
         let mut sorted = nums;
-        sorted.sort();
+        sorted.sort_unstable();
 
-        let start_idx = sorted.len().saturating_sub(k as usize);
-        let truncated = sorted.split_off(start_idx);
+        let start_idx = sorted.len().saturating_sub(k);
+        sorted.drain(..start_idx);
 
-        Self {
-            k: k as usize,
-            heap: truncated,
-        }
+        Self { k, heap: sorted }
     }
 
-    fn get_parent(&self, i: usize) -> usize {
-        if i > 0 { (i - 1) / 2 } else { 0 }
-    }
-
-    fn get_left(&self, i: usize) -> usize {
-        (2 * i) + 1
-    }
-
-    fn get_right(&self, i: usize) -> usize {
-        (2 * i) + 2
-    }
-
-    fn heapify_down(&mut self, i: usize) {
-        let l = self.get_left(i);
-        let r = self.get_right(i);
+    fn heapify_down(&mut self, mut i: usize) {
         let n = self.heap.len();
+        loop {
+            let mut s = i;
 
-        let mut s = i;
-        if l < n
-            && let (Some(left), Some(smallest)) = (self.heap.get(l), self.heap.get(s))
-            && left <= smallest
-        {
-            s = l;
-        }
+            if left(i) < n && self.heap[left(i)] < self.heap[s] {
+                s = left(i);
+            }
+            if right(i) < n && self.heap[right(i)] < self.heap[s] {
+                s = right(i);
+            }
 
-        if r < n
-            && let (Some(right), Some(smallest)) = (self.heap.get(r), self.heap.get(s))
-            && right <= smallest
-        {
-            s = r;
-        }
+            if s == i {
+                return;
+            }
 
-        if s != i {
             self.heap.swap(i, s);
-            self.heapify_down(s);
+            i = s;
         }
     }
 
-    fn heapify_up(&mut self) {
-        if self.heap.len() > 1 {
-            let mut i = self.heap.len() - 1;
-
-            while self.heap.get(self.get_parent(i)).unwrap() > self.heap.get(i).unwrap() {
-                let parent = self.get_parent(i);
-                self.heap.swap(i, parent);
-                i = parent;
-            }
+    fn heapify_up(&mut self, mut i: usize) {
+        while i > 0 && self.heap[i] < self.heap[parent(i)] {
+            self.heap.swap(i, parent(i));
+            i = parent(i);
         }
     }
 
     fn add(&mut self, num: i32) -> i32 {
         if self.heap.len() < self.k {
             self.heap.push(num);
-            self.heapify_up();
-        } else if let Some(min) = self.heap.first()
-            && &num > min
-        {
-            if let Some(old_min) = self.heap.get_mut(0) {
-                *old_min = num;
-            }
-
+            self.heapify_up(self.heap.len() - 1);
+        } else if num > self.heap[0] {
+            self.heap[0] = num;
             self.heapify_down(0);
         }
 
-        self.heap
-            .first()
-            .copied()
-            .expect("Heap should have at least one element")
+        self.heap[0]
     }
 }
 
