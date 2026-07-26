@@ -103,3 +103,28 @@ pub fn run() {
     println!("Add -4 (expect 0): {}", kth.add(-4));
     println!("Add 3 (expect 1): {}", kth.add(3));
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_one() {
+        let mut kth = KthLargest::new(2, vec![0]);
+        assert_eq!(kth.add(-1), -1);
+        assert_eq!(kth.add(1), 0);
+        assert_eq!(kth.add(-2), 0);
+        assert_eq!(kth.add(-4), 0);
+        assert_eq!(kth.add(3), 1);
+    }
+
+    #[test]
+    fn test_two() {
+        let mut kth = KthLargest::new(3, vec![4, 5, 8, 2]);
+        assert_eq!(kth.add(3), 4);
+        assert_eq!(kth.add(5), 5);
+        assert_eq!(kth.add(10), 5);
+        assert_eq!(kth.add(9), 8);
+        assert_eq!(kth.add(4), 8);
+    }
+}
